@@ -1,54 +1,46 @@
 import streamlit as st
-import sqlite3
-from utils.db_utils import create_user, authenticate_user, save_mood, get_moods
-from datetime import datetime
+from utils.db_utils import create_user, authenticate_user
 
-st.title("Mental Health Mood Tracker")
+# Initialize session state
+if "username" not in st.session_state:
+    st.session_state.username = None
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-# Session state for login
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-    st.session_state["username"] = ""
+def main():
+    st.title("Mood Tracker App")
 
-# User Authentication
-if not st.session_state["logged_in"]:
-    choice = st.radio("Login or Register", ["Login", "Register"])
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    menu = ["Login", "Register"]
+    choice = st.sidebar.selectbox("Menu", menu)
 
     if choice == "Register":
-        if st.button("Sign Up"):
-            if create_user(username, password):
-                st.success("Account created! Please log in.")
-            else:
-                st.error("User already exists!")
+        st.subheader("Create a New Account")
+        new_username = st.text_input("Username")
+        new_password = st.text_input("Password", type="password")
 
-    else:
+        if st.button("Register"):
+            success = create_user(new_username, new_password)
+            if success:
+                st.session_state.username = new_username
+                st.session_state.authenticated = True
+                st.success("Registration successful! Redirecting to questionnaire...")
+                st.switch_page("pages/questionnaire.py")  # ✅ Redirecting only after registration
+            else:
+                st.error("Username already exists. Try a different one.")
+
+    elif choice == "Login":
+        st.subheader("Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+
         if st.button("Login"):
             if authenticate_user(username, password):
-                st.session_state["logged_in"] = True
-                st.session_state["username"] = username
-                st.rerun()
+                st.session_state.username = username
+                st.session_state.authenticated = True
+                st.success("Login successful! Redirecting to dashboard...")
+                st.switch_page("pages/dashboard.py")  # ✅ Skip questionnaire for returning users
             else:
-                st.error("Invalid credentials")
+                st.error("Invalid credentials, please try again.")
 
-# Mood Tracker Section
-if st.session_state["logged_in"]:
-    st.subheader(f"Hello, {st.session_state['username']}! How are you today?")
-    
-    today = datetime.today().strftime('%Y-%m-%d')
-    mood_options = ["Happy", "Sad", "Stressed", "Anxious", "Calm", "Excited"]
-    mood = st.selectbox("Select your mood", mood_options)
-
-    if st.button("Save Mood"):
-        save_mood(st.session_state["username"], today, mood)
-        st.success("Mood saved!")
-
-    # Show Mood History
-    st.subheader("Mood History")
-    moods = get_moods(st.session_state["username"])
-    if moods:
-        for date, mood in moods:
-            st.write(f"{date}: {mood}")
-    else:
-        st.write("No mood records found.")
+if __name__ == "__main__":
+    main()
